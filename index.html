@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speech Metronome — Slow Down, Speak Clearly</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f14;
+    --surface: #1a1a24;
+    --surface2: #22222f;
+    --text: #e4e4ec;
+    --text-muted: #8888a0;
+    --accent: #e8a850;
+    --accent-glow: #e8a85066;
+    --danger: #d9534f;
+    --radius: 12px;
+    --transition: 180ms ease;
+  }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ── Layout ── */
+  .app {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+
+  /* ── Header ── */
+  .header { text-align: center; }
+  .header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .header h1 span { color: var(--accent); }
+  .header p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+  }
+
+  /* ── Metronome Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid #ffffff0a;
+    border-radius: var(--radius);
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  /* ── Beat Circle ── */
+  .beat-ring {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .beat-ring::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid var(--surface2);
+    transition: border-color var(--transition);
+  }
+  .beat-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: var(--surface2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    transition: background 80ms ease, transform 80ms ease, box-shadow 80ms ease;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+  }
+  .beat-circle.flash {
+    background: var(--accent);
+    transform: scale(1.08);
+    box-shadow: 0 0 48px var(--accent-glow);
+  }
+  .beat-circle.flash-downbeat {
+    background: #f0c070;
+    transform: scale(1.14);
+    box-shadow: 0 0 60px #f0c07044;
+  }
+  .bpm-display {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .bpm-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+  }
+  .beat-count {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    height: 1.2em;
+  }
+
+  /* ── BPM Controls ── */
+  .bpm-controls {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .bpm-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface2);
+    outline: none;
+    cursor: pointer;
+  }
+  .bpm-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 3px solid var(--bg);
+    box-shadow: 0 0 0 2px var(--accent), 0 0 16px var(--accent-glow);
+    transition: box-shadow var(--transition);
+  }
+  .bpm-slider::-webkit-slider-thumb:active {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 28px var(--accent-glow);
+  }
+  .bpm-range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Buttons Row ── */
+  .btn-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+  }
+  .btn {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    background: var(--surface2);
+    color: var(--text);
+    transition: background var(--transition), transform 80ms ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn:hover { background: #2a2a3a; }
+
+  .btn-play {
+    flex: 1;
+    font-size: 1rem;
+    padding: 0.75rem;
+    background: var(--accent);
+    color: #1a1a14;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border-radius: 10px;
+    transition: background var(--transition), transform 80ms ease, box-shadow var(--transition);
+  }
+  .btn-play:hover { background: #f0b860; }
+  .btn-play:active { transform: scale(0.97); }
+  .btn-play.playing {
+    background: var(--danger);
+    color: #fff;
+  }
+  .btn-play.playing:hover { background: #e06050; }
+
+  .btn-step {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .btn-mute {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background: var(--surface2);
+    color: var(--text);
+    border: none;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), transform 80ms ease;
+  }
+  .btn-mute:hover { background: #2a2a3a; }
+  .btn-mute:active { transform: scale(0.96); }
+  .btn-mute.muted {
+    background: #2a1a1a;
+    color: var(--danger);
+  }
+
+  /* ── Presets ── */
+  .presets {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+  .preset {
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.4rem 0.85rem;
+    border-radius: 20px;
+    border: 1px solid #ffffff10;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  .preset:hover { border-color: var(--accent); color: var(--text); }
+  .preset.active {
+    background: var(--accent);
+    color: #1a1a14;
+    border-color: var(--accent);
+  }
+
+  /* ── Speech Card ── */
+  .speech-card {
+    background: var(--surface);
+    border: 1px solid #ffffff0a;
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .speech-card h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .speech-card h2 span { color: var(--accent); }
+
+  textarea {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    width: 100%;
+    min-height: 100px;
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid #ffffff08;
+    border-radius: 10px;
+    padding: 1rem;
+    resize: vertical;
+    outline: none;
+    transition: border-color var(--transition);
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--text-muted); opacity: 0.5; }
+
+  /* ── Word Display (the karaoke / caption area) ── */
+  .word-display {
+    background: var(--surface2);
+    border: 1px solid #ffffff08;
+    border-radius: 10px;
+    padding: 1.25rem 1rem;
+    min-height: 70px;
+    max-height: 280px;
+    overflow-y: auto;
+    font-size: 1.05rem;
+    line-height: 2.2;
+    word-wrap: break-word;
+    scroll-behavior: smooth;
+    /* Hide scrollbar when not scrolling, but keep functionality */
+    scrollbar-width: thin;
+    scrollbar-color: #33334a transparent;
+  }
+  .word-display::-webkit-scrollbar { width: 4px; }
+  .word-display::-webkit-scrollbar-thumb { background: #33334a; border-radius: 2px; }
+  .word-display::-webkit-scrollbar-track { background: transparent; }
+
+  .word-display .empty-state {
+    color: var(--text-muted);
+    opacity: 0.4;
+    font-style: italic;
+    text-align: center;
+    padding: 0.5rem 0;
+  }
+
+  /* Each word is a span so text wraps naturally */
+  .wd-word {
+    display: inline;
+    padding: 2px 5px;
+    border-radius: 5px;
+    transition: all 100ms ease;
+    margin: 0 0.5px;
+  }
+  /* Past words — read normally, slightly faded */
+  .wd-word.past {
+    color: var(--text);
+    opacity: 0.45;
+  }
+  /* Current word — brightly highlighted like a caption */
+  .wd-word.current {
+    color: #1a1a14;
+    background: var(--accent);
+    font-weight: 700;
+    box-shadow: 0 0 16px var(--accent-glow), 0 0 2px var(--accent);
+    border-radius: 5px;
+    opacity: 1;
+  }
+  /* Upcoming words — dim and muted */
+  .wd-word.upcoming {
+    color: var(--text);
+    opacity: 0.18;
+  }
+
+  /* ── Word-display controls ── */
+  .wd-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .wd-controls .btn {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .wd-controls .btn.active-ctrl {
+    background: var(--accent);
+    color: #1a1a14;
+    border-color: var(--accent);
+  }
+  .wd-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 0.2rem;
+  }
+  .wd-progress {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Speech Stats ── */
+  .speech-stats {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .speech-stats strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  /* ── Tip Banner ── */
+  .tip {
+    background: var(--surface);
+    border: 1px solid #ffffff0a;
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+  }
+  .tip-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 480px) {
+    .app { max-width: 100%; }
+    .card { padding: 1.5rem 1rem; }
+    .beat-ring { width: 110px; height: 110px; }
+    .beat-circle { width: 78px; height: 78px; }
+    .bpm-display { font-size: 2.1rem; }
+    .btn-play { font-size: 0.9rem; padding: 0.65rem; }
+    .btn-step { width: 38px; height: 38px; font-size: 1rem; }
+    .header h1 { font-size: 1.3rem; }
+    textarea { min-height: 90px; font-size: 0.85rem; }
+    .word-display { font-size: 0.9rem; line-height: 2; max-height: 200px; }
+    .wd-controls { gap: 0.4rem; }
+    .wd-controls .btn { font-size: 0.7rem; padding: 0.35rem 0.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <h1>Speech <span>Metronome</span></h1>
+    <p>Slow your pace. Find your rhythm. Speak with clarity.</p>
+  </header>
+
+  <!-- Metronome -->
+  <div class="card" id="metronomeCard">
+    <div class="beat-ring">
+      <div class="beat-circle" id="beatCircle" title="Tap for tempo">
+        <span class="bpm-display" id="bpmDisplay">60</span>
+        <span class="bpm-label">BPM</span>
+      </div>
+    </div>
+    <div class="beat-count" id="beatCounter">Press play to start</div>
+
+    <div class="bpm-controls">
+      <input type="range" class="bpm-slider" id="bpmSlider" min="20" max="140" value="60" step="1">
+      <div class="bpm-range-labels">
+        <span>20 — Very Slow</span><span>80 — Conversational</span><span>140 — Fast</span>
+      </div>
+    </div>
+
+    <div class="presets" id="presets">
+      <button class="preset" data-bpm="40">40 BPM</button>
+      <button class="preset" data-bpm="50">50 BPM</button>
+      <button class="preset active" data-bpm="60">60</button>
+      <button class="preset" data-bpm="70">70 BPM</button>
+      <button class="preset" data-bpm="80">80 BPM</button>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-step" id="btnDown" aria-label="Decrease BPM">−5</button>
+      <button class="btn-mute" id="btnMute" aria-label="Mute sound" title="Mute sound">🔊</button>
+      <button class="btn btn-play" id="btnPlay" aria-label="Play metronome">
+        <span id="btnPlayIcon">▶</span> <span id="btnPlayLabel">Start</span>
+      </button>
+      <button class="btn btn-step" id="btnUp" aria-label="Increase BPM">+5</button>
+    </div>
+  </div>
+
+  <!-- Speech Practice -->
+  <div class="speech-card">
+    <h2>📝 Your <span>Speech</span></h2>
+    <textarea
+      id="speechText"
+      placeholder="Paste your speech, presentation notes, or talking points here…&#10;&#10;Then press play and watch each word light up on the beat."
+    ></textarea>
+
+    <!-- Word Highlight Display (karaoke-style) -->
+    <div class="word-display" id="wordDisplay">
+      <span class="empty-state">Your words will appear here — highlighted to the beat</span>
+    </div>
+
+    <!-- Word-display controls -->
+    <div class="wd-controls">
+      <span class="wd-label">Words per beat:</span>
+      <button class="btn active-ctrl" data-wpb="1">1</button>
+      <button class="btn" data-wpb="2">2</button>
+      <button class="btn" data-wpb="3">3</button>
+      <button class="btn" id="btnResetWords" title="Reset to first word">↺ Reset</button>
+      <span class="wd-progress" id="wdProgress">—</span>
+    </div>
+
+    <div class="speech-stats">
+      <span>Words: <strong id="wordCount">0</strong></span>
+      <span>Est. syllables: <strong id="syllableCount">0</strong></span>
+      <span>At current BPM: <strong id="estTime">—</strong></span>
+    </div>
+  </div>
+
+  <!-- Tip -->
+  <div class="tip">
+    <span class="tip-icon">💡</span>
+    <span><strong>Pro tip:</strong> Set <strong>40–60 BPM</strong> with <strong>1 word per beat</strong>. Watch each word light up — speak it exactly on the click. You'll retrain your natural pace in just a few sessions.</span>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  /* ── DOM refs ── */
+  const beatCircle    = document.getElementById('beatCircle');
+  const bpmDisplay    = document.getElementById('bpmDisplay');
+  const bpmSlider     = document.getElementById('bpmSlider');
+  const beatCounter   = document.getElementById('beatCounter');
+  const btnPlay       = document.getElementById('btnPlay');
+  const btnPlayIcon   = document.getElementById('btnPlayIcon');
+  const btnPlayLabel  = document.getElementById('btnPlayLabel');
+  const btnUp         = document.getElementById('btnUp');
+  const btnDown       = document.getElementById('btnDown');
+  const btnMute       = document.getElementById('btnMute');
+  const presetsEl     = document.getElementById('presets');
+  const speechText    = document.getElementById('speechText');
+  const wordDisplay   = document.getElementById('wordDisplay');
+  const wdProgress    = document.getElementById('wdProgress');
+  const btnResetWords = document.getElementById('btnResetWords');
+  const wordCountEl   = document.getElementById('wordCount');
+  const syllableEl    = document.getElementById('syllableCount');
+  const estTimeEl     = document.getElementById('estTime');
+
+  /* ── State ── */
+  let bpm = 60;
+  let playing = false;
+  let beatNumber = 0;
+  const beatsPerBar = 4;
+  let nextBeatTime = 0;
+  let schedulerTimer = null;
+  const lookahead = 0.1;
+  const scheduleAhead = 0.05;
+  let tapTimes = [];
+  let muted = false;
+
+  // Word-tracking state
+  let words = [];               // array of {text, isPunctuation}
+  let currentWordIndex = -1;    // -1 = before first word (nothing highlighted yet)
+  let wordsPerBeat = 1;
+  let wordSpans = [];           // live DOM spans for each word
+
+  /* ── Audio ── */
+  let audioCtx = null;
+
+  function getAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function scheduleClick(when, isDownbeat) {
+    if (muted) return;
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.frequency.setValueAtTime(isDownbeat ? 800 : 1000, when);
+    osc.frequency.exponentialRampToValueAtTime(isDownbeat ? 200 : 300, when + 0.04);
+
+    gain.gain.setValueAtTime(0.35, when);
+    gain.gain.exponentialRampToValueAtTime(0.001, when + (isDownbeat ? 0.07 : 0.05));
+
+    osc.start(when);
+    osc.stop(when + 0.08);
+  }
+
+  /* ── Word Display ── */
+  function tokenizeWords(text) {
+    // Split text into words, keeping whitespace/punctuation as separate tokens
+    // so we only highlight actual words.
+    const raw = text.trim();
+    if (!raw) return [];
+
+    // Match: words (including contractions, hyphens) OR standalone punctuation/whitespace
+    const tokens = [];
+    const regex = /\S+/g;
+    let match;
+    while ((match = regex.exec(raw)) !== null) {
+      const token = match[0];
+      // Check if it's a "real word" (contains letters or numbers)
+      const hasAlpha = /[a-zA-Z0-9]/.test(token);
+      tokens.push({
+        text: token,
+        isWord: hasAlpha
+      });
+    }
+    return tokens;
+  }
+
+  function renderWordDisplay() {
+    const text = speechText.value;
+    words = tokenizeWords(text);
+
+    // Clear display
+    wordDisplay.innerHTML = '';
+
+    if (words.length === 0) {
+      wordDisplay.innerHTML = '<span class="empty-state">Your words will appear here — highlighted to the beat</span>';
+      wordSpans = [];
+      updateWdProgress();
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    wordSpans = [];
+
+    for (let i = 0; i < words.length; i++) {
+      const span = document.createElement('span');
+      span.textContent = words[i].text;
+      span.className = 'wd-word upcoming';
+      span.dataset.index = i;
+
+      // Add a space after each token (except the last)
+      // We'll put the space as a text node
+      fragment.appendChild(span);
+      if (i < words.length - 1) {
+        fragment.appendChild(document.createTextNode(' '));
+      }
+
+      wordSpans.push(span);
+    }
+
+    wordDisplay.appendChild(fragment);
+    updateWdProgress();
+  }
+
+  function highlightWord(index) {
+    if (words.length === 0) return;
+
+    // Remove all highlighting
+    for (let i = 0; i < wordSpans.length; i++) {
+      const span = wordSpans[i];
+      if (!span) continue;
+      span.classList.remove('past', 'current', 'upcoming');
+
+      if (i < index) {
+        span.classList.add('past');
+      } else if (i === index) {
+        span.classList.add('current');
+      } else {
+        span.classList.add('upcoming');
+      }
+    }
+
+    // Auto-scroll the current word into view (centered if possible)
+    if (index >= 0 && index < wordSpans.length) {
+      const currentSpan = wordSpans[index];
+      if (currentSpan) {
+        currentSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    updateWdProgress();
+  }
+
+  function advanceWord() {
+    if (words.length === 0) return;
+
+    // Advance by wordsPerBeat, but only count actual words (not punctuation)
+    let stepped = 0;
+    let nextIndex = currentWordIndex;
+
+    while (stepped < wordsPerBeat) {
+      nextIndex++;
+      if (nextIndex >= words.length) {
+        // Loop back to beginning
+        nextIndex = 0;
+        // Re-render to reset all spans to upcoming
+        renderWordDisplay();
+      }
+      // Only count actual words, skip punctuation-only tokens
+      if (words[nextIndex] && words[nextIndex].isWord) {
+        stepped++;
+      }
+    }
+
+    currentWordIndex = nextIndex;
+    highlightWord(currentWordIndex);
+  }
+
+  function resetWordPosition() {
+    currentWordIndex = -1;
+    renderWordDisplay();
+  }
+
+  function updateWdProgress() {
+    if (words.length === 0) {
+      wdProgress.textContent = '—';
+      return;
+    }
+    const totalWords = words.filter(w => w.isWord).length;
+    // Find how many actual words we've passed
+    let spoken = 0;
+    for (let i = 0; i <= currentWordIndex && i < words.length; i++) {
+      if (words[i].isWord) spoken++;
+    }
+    wdProgress.textContent = `Word ${Math.max(0, spoken)} / ${totalWords}`;
+  }
+
+  /* ── Scheduler ── */
+  function nextBeat() {
+    beatNumber = (beatNumber % beatsPerBar) + 1;
+    const isDownbeat = beatNumber === 1;
+
+    scheduleClick(nextBeatTime, isDownbeat);
+
+    const now = audioCtx.currentTime;
+    const delayMs = Math.max(0, (nextBeatTime - now) * 1000);
+
+    setTimeout(() => {
+      flashBeat(isDownbeat);
+      updateBeatCounter();
+      // Advance word highlight on every beat
+      advanceWord();
+    }, delayMs);
+
+    nextBeatTime += 60 / bpm;
+  }
+
+  function schedulerTick() {
+    const ctx = audioCtx;
+    if (!ctx) return;
+    while (nextBeatTime < ctx.currentTime + lookahead) {
+      nextBeat();
+    }
+  }
+
+  function startScheduler() {
+    const ctx = getAudioContext();
+    nextBeatTime = ctx.currentTime + 0.05;
+    beatNumber = 0;
+
+    // Reset word position when starting
+    if (currentWordIndex >= words.length - 1 || currentWordIndex === -1) {
+      // If we're at the end or never started, reset to beginning
+      currentWordIndex = -1;
+      renderWordDisplay();
+    }
+    // Otherwise continue from current position (user paused and resumed)
+
+    schedulerTick();
+    schedulerTimer = setInterval(schedulerTick, scheduleAhead * 1000);
+  }
+
+  function stopScheduler() {
+    if (schedulerTimer) {
+      clearInterval(schedulerTimer);
+      schedulerTimer = null;
+    }
+    beatNumber = 0;
+    beatCounter.textContent = 'Press play to start';
+    beatCircle.classList.remove('flash', 'flash-downbeat');
+  }
+
+  /* ── Visual ── */
+  function flashBeat(isDownbeat) {
+    const cls = isDownbeat ? 'flash-downbeat' : 'flash';
+    beatCircle.classList.add(cls);
+    setTimeout(() => beatCircle.classList.remove(cls), isDownbeat ? 100 : 75);
+  }
+
+  function updateBeatCounter() {
+    const filled = '●'.repeat(beatNumber);
+    const empty  = '○'.repeat(beatsPerBar - beatNumber);
+    beatCounter.textContent = `${filled}${empty}  ·  Beat ${beatNumber}`;
+  }
+
+  /* ── Play / Stop ── */
+  function play() {
+    playing = true;
+    startScheduler();
+    btnPlayIcon.textContent = '⏸';
+    btnPlayLabel.textContent = 'Stop';
+    btnPlay.classList.add('playing');
+  }
+
+  function stop() {
+    playing = false;
+    stopScheduler();
+    btnPlayIcon.textContent = '▶';
+    btnPlayLabel.textContent = 'Start';
+    btnPlay.classList.remove('playing');
+  }
+
+  function togglePlay() {
+    if (playing) stop(); else play();
+  }
+
+  /* ── BPM setters ── */
+  function setBPM(value) {
+    bpm = Math.max(20, Math.min(140, value));
+    bpmDisplay.textContent = bpm;
+    bpmSlider.value = bpm;
+    updatePresetHighlight();
+    updateSpeechStats();
+  }
+
+  function changeBPM(delta) {
+    setBPM(bpm + delta);
+  }
+
+  /* ── Presets ── */
+  function updatePresetHighlight() {
+    Array.from(presetsEl.querySelectorAll('.preset')).forEach(btn => {
+      const presetBpm = parseInt(btn.dataset.bpm, 10);
+      btn.classList.toggle('active', presetBpm === bpm);
+    });
+  }
+
+  /* ── Tap Tempo ── */
+  let tapTimeout = null;
+  beatCircle.addEventListener('click', (e) => {
+    const now = performance.now();
+    tapTimes.push(now);
+    if (tapTimes.length > 5) tapTimes.shift();
+    if (tapTimes.length >= 2) {
+      const intervals = [];
+      for (let i = 1; i < tapTimes.length; i++) {
+        intervals.push(tapTimes[i] - tapTimes[i - 1]);
+      }
+      const avgMs = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const avgBpm = Math.round(60000 / avgMs);
+      if (avgBpm >= 20 && avgBpm <= 140) {
+        setBPM(avgBpm);
+      }
+    }
+    clearTimeout(tapTimeout);
+    tapTimeout = setTimeout(() => { tapTimes = []; }, 2000);
+  });
+
+  /* ── Event listeners ── */
+  btnPlay.addEventListener('click', togglePlay);
+  btnMute.addEventListener('click', () => {
+    muted = !muted;
+    btnMute.textContent = muted ? '🔇' : '🔊';
+    btnMute.classList.toggle('muted', muted);
+    btnMute.title = muted ? 'Unmute sound' : 'Mute sound';
+  });
+  btnUp.addEventListener('click', () => changeBPM(5));
+  btnDown.addEventListener('click', () => changeBPM(-5));
+
+  bpmSlider.addEventListener('input', () => {
+    setBPM(parseInt(bpmSlider.value, 10));
+  });
+
+  presetsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.preset');
+    if (!btn) return;
+    setBPM(parseInt(btn.dataset.bpm, 10));
+  });
+
+  // Words-per-beat buttons
+  document.querySelector('.wd-controls').addEventListener('click', (e) => {
+    const wpbBtn = e.target.closest('[data-wpb]');
+    if (wpbBtn) {
+      wordsPerBeat = parseInt(wpbBtn.dataset.wpb, 10);
+      // Update active state
+      document.querySelectorAll('[data-wpb]').forEach(b => b.classList.remove('active-ctrl'));
+      wpbBtn.classList.add('active-ctrl');
+    }
+  });
+
+  // Reset words button
+  btnResetWords.addEventListener('click', () => {
+    resetWordPosition();
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+      return;
+    }
+    switch (e.code) {
+      case 'Space':
+        e.preventDefault();
+        togglePlay();
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        changeBPM(1);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        changeBPM(-1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        changeBPM(5);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        changeBPM(-5);
+        break;
+      case 'KeyR':
+        // Ctrl+R or just R to reset word position
+        if (!e.ctrlKey && !e.metaKey) {
+          resetWordPosition();
+        }
+        break;
+    }
+  });
+
+  // Speech text input
+  speechText.addEventListener('input', () => {
+    updateSpeechStats();
+    // Rebuild word display on text change (preserve position if reasonable)
+    const oldIndex = currentWordIndex;
+
+    // Try to keep position, but reset if text changed drastically
+    const newWords = tokenizeWords(speechText.value);
+    if (Math.abs(newWords.length - words.length) > 5 || !playing) {
+      // Big change or not playing — full reset
+      resetWordPosition();
+    } else {
+      // Minor edit while playing — rebuild but keep index
+      renderWordDisplay();
+      if (currentWordIndex >= words.length) {
+        currentWordIndex = words.length - 1;
+      }
+      if (currentWordIndex >= 0) {
+        highlightWord(currentWordIndex);
+      }
+    }
+
+    // If no text, clear
+    if (!speechText.value.trim()) {
+      resetWordPosition();
+    }
+  });
+
+  /* ── Speech Stats ── */
+  function countSyllables(text) {
+    const wordsArr = text.trim().split(/\s+/).filter(Boolean);
+    let count = 0;
+    for (const word of wordsArr) {
+      const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+      if (clean.length === 0) continue;
+      const vowelGroups = clean.match(/[aeiouy]+/g);
+      const syl = vowelGroups ? vowelGroups.length : 1;
+      let adjusted = syl;
+      if (clean.endsWith('e') && syl > 1) adjusted = Math.max(1, syl - 1);
+      if (clean.endsWith('le') && clean.length > 3) adjusted = Math.max(1, adjusted);
+      count += Math.max(1, adjusted);
+    }
+    return count;
+  }
+
+  function updateSpeechStats() {
+    const text = speechText.value.trim();
+    const wc = text ? text.split(/\s+/).filter(Boolean).length : 0;
+    const syllables = text ? countSyllables(text) : 0;
+
+    wordCountEl.textContent = wc;
+    syllableEl.textContent = syllables;
+
+    if (syllables > 0 && bpm > 0) {
+      const minutes = syllables / bpm;
+      const mins = Math.floor(minutes);
+      const secs = Math.round((minutes - mins) * 60);
+      estTimeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')} min`;
+    } else {
+      estTimeEl.textContent = '—';
+    }
+  }
+
+  /* ── Init ── */
+  resetWordPosition();
+  updateSpeechStats();
+  updatePresetHighlight();
+
+  console.log('%c🥁 Speech Metronome ready %c| %cSpace%c play/pause %c←→%c ±1 BPM %c↑↓%c ±5 BPM %cR%c reset words',
+    'font-weight:bold', '',
+    'background:#e8a850;color:#000;padding:2px 6px;border-radius:4px', '',
+    'background:#e8a850;color:#000;padding:2px 6px;border-radius:4px', '',
+    'background:#e8a850;color:#000;padding:2px 6px;border-radius:4px', '',
+    'background:#e8a850;color:#000;padding:2px 6px;border-radius:4px', '');
+})();
+</script>
+
+</body>
+</html>
