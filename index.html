@@ -428,6 +428,23 @@
   }
   .tip-icon { font-size: 1.1rem; flex-shrink: 0; }
 
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0.5;
+    transition: opacity var(--transition);
+  }
+  .footer:hover { opacity: 0.85; }
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color var(--transition);
+  }
+  .footer a:hover { color: #f0c870; }
+
   /* ── Responsive ── */
   @media (max-width: 480px) {
     .app { max-width: 100%; }
@@ -525,6 +542,11 @@
     <span class="tip-icon">💡</span>
     <span><strong>Pro tip:</strong> Set <strong>40–60 BPM</strong> with <strong>1 word per beat</strong>. Watch each word light up — speak it exactly on the click. You'll retrain your natural pace in just a few sessions.</span>
   </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    Built with 🥁 by <a href="https://www.linkedin.com/in/itsdavidmandal/" target="_blank" rel="noopener">David Mandal</a>
+  </footer>
 
 </div>
 
